@@ -320,6 +320,31 @@ pub fn setup(
         mgr.init_history_store().await;
     });
 
+    // Auto-start the in-process MCP server when enabled in settings.
+    {
+        let mcp_manager = app
+            .state::<Arc<crate::core::mcp::McpServerManager>>()
+            .inner()
+            .clone();
+        let mcp_approval = app
+            .state::<Arc<crate::core::ai::AgentApprovalManager>>()
+            .inner()
+            .clone();
+        let mcp_sessions = session_manager.clone();
+        let mcp_handle = app.handle().clone();
+        tauri::async_runtime::spawn(async move {
+            match crate::core::mcp::auto_start(&mcp_handle, mcp_sessions, mcp_approval, mcp_manager)
+                .await
+            {
+                Ok(Some(status)) => {
+                    tracing::info!(address = ?status.bind_address, "MCP server auto-started");
+                }
+                Ok(None) => tracing::debug!("MCP server disabled in settings"),
+                Err(error) => tracing::warn!(%error, "MCP server auto-start failed"),
+            }
+        });
+    }
+
     if let Err(error) = quick_commands_store.load_from_disk(app.handle()) {
         tracing::warn!("Failed to load quick commands: {}", error);
     }

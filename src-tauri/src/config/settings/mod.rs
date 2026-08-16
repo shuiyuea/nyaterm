@@ -15,9 +15,9 @@ pub use ai::{
     AI_REQUEST_USER_AGENT_DEFAULT, AgentCommandExecutionMode, AiAgentKind, AiBackendKind,
     AiCustomActionConfig, AiMode, AiModelConfigItem, AiModelSource, AiPermissionMode,
     AiProviderCredential, AiProviderKind, AiProviderProfile, AiReasoningEffort, AiSettings,
-    ClaudeCodeIntegrationSettings, CodexIntegrationSettings, CodexThreadMode, RiskLevel,
-    ai_model_id_for_credential, ai_model_id_for_provider, decrypt_ai_settings, encrypt_ai_settings,
-    mask_ai_settings, merge_masked_ai_settings, normalize_ai_settings,
+    ClaudeCodeIntegrationSettings, CodexIntegrationSettings, CodexThreadMode, McpSettings,
+    RiskLevel, ai_model_id_for_credential, ai_model_id_for_provider, decrypt_ai_settings,
+    encrypt_ai_settings, mask_ai_settings, merge_masked_ai_settings, normalize_ai_settings,
 };
 pub use appearance::{AppearanceSettings, TerminalColorsConfig, ThemeColorsConfig, ThemeConfig};
 pub use diagnostics::{DiagnosticsLogLevel, DiagnosticsSettings};

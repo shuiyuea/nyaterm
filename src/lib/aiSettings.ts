@@ -636,6 +636,13 @@ export const DEFAULT_AI_SETTINGS: AISettings = {
     permission_mode: "confirm",
     tool_integration_mode: "nyaterm_mcp",
   },
+  mcp: {
+    enabled: false,
+    bind_address: "127.0.0.1:26201",
+    auth_token: null,
+    permission_mode: "confirm",
+    allowed_sessions: [],
+  },
 };
 
 function normalizeLocaleTag(value?: string | null): string | null {

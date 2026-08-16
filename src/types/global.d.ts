@@ -1333,6 +1333,26 @@ export interface ClaudeCodeIntegrationSettings {
   tool_integration_mode?: string | null;
 }
 
+export interface McpSettings {
+  enabled: boolean;
+  bind_address: string;
+  auth_token?: string | null;
+  permission_mode: AIPermissionMode;
+  allowed_sessions: string[];
+}
+
+export interface McpServerStatus {
+  running: boolean;
+  bindAddress?: string | null;
+}
+
+export interface McpApprovalRequest {
+  key: string;
+  sessionId: string;
+  command: string;
+  riskLevel: RiskLevel;
+}
+
 export interface AIProviderProfile {
   id: string;
   name: string;
@@ -1388,6 +1408,7 @@ export interface AISettings {
   agent_smart_auto_execute_max_risk: RiskLevel;
   codex: CodexIntegrationSettings;
   claude_code: ClaudeCodeIntegrationSettings;
+  mcp: McpSettings;
 }
 
 export interface AIContext {

@@ -125,6 +125,7 @@ if (windowType) {
     { AppProvider },
     { default: App },
     { default: ErrorBoundary },
+    { McpApprovalDialog },
     { Toaster },
   ] = await Promise.all([
     import("@tauri-apps/api/window"),
@@ -132,6 +133,7 @@ if (windowType) {
     import("./context/AppProvider"),
     import("./App"),
     import("./components/ErrorBoundary"),
+    import("./components/dialog/ai/McpApprovalDialog"),
     import("./components/ui/sonner"),
   ]);
   setOwnerMainWindowLabel(getCurrentWindow().label);
@@ -142,6 +144,7 @@ if (windowType) {
         <AppProvider>
           <ThemeProvider>
             <App />
+            <McpApprovalDialog />
             <Toaster />
           </ThemeProvider>
         </AppProvider>

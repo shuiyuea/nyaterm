@@ -10,6 +10,7 @@ pub(crate) mod stream;
 mod types;
 
 pub use agent::AgentApprovalManager;
+pub(crate) use agent::assess_local_command_risk;
 pub use codex::{
     CodexAccountStatus, CodexAppServerManager, CodexCliStatus, CodexLoginFlow, CodexLoginStart,
     manager_from_app, run_codex_stream,

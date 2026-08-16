@@ -262,6 +262,42 @@ pub struct AiCustomActionConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpSettings {
+    /// Whether to auto-start the in-process MCP server on app launch.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Loopback socket address, e.g. `127.0.0.1:26201`.
+    #[serde(default = "default_mcp_bind_address")]
+    pub bind_address: String,
+    /// Optional bearer token; when set, clients must send
+    /// `Authorization: Bearer <token>`.
+    #[serde(default)]
+    pub auth_token: Option<String>,
+    /// Command execution permission policy.
+    #[serde(default)]
+    pub permission_mode: AiPermissionMode,
+    /// Session ids exposed to MCP clients. Empty means all sessions.
+    #[serde(default)]
+    pub allowed_sessions: Vec<String>,
+}
+
+impl Default for McpSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            bind_address: default_mcp_bind_address(),
+            auth_token: None,
+            permission_mode: AiPermissionMode::Confirm,
+            allowed_sessions: Vec::new(),
+        }
+    }
+}
+
+fn default_mcp_bind_address() -> String {
+    "127.0.0.1:26201".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiSettings {
     #[serde(default = "default_schema_version")]
     pub schema_version: u32,
@@ -319,6 +355,8 @@ pub struct AiSettings {
     pub codex: CodexIntegrationSettings,
     #[serde(default)]
     pub claude_code: ClaudeCodeIntegrationSettings,
+    #[serde(default)]
+    pub mcp: McpSettings,
 }
 
 fn default_schema_version() -> u32 {
@@ -601,6 +639,7 @@ impl Default for AiSettings {
             agent_smart_auto_execute_max_risk: default_agent_smart_auto_execute_max_risk(),
             codex: CodexIntegrationSettings::default(),
             claude_code: ClaudeCodeIntegrationSettings::default(),
+            mcp: McpSettings::default(),
         }
     }
 }
@@ -612,6 +651,7 @@ pub fn decrypt_ai_settings(mut settings: AiSettings) -> AppResult<AiSettings> {
     for credential in &mut settings.provider_credentials {
         credential.api_key = decrypt_secret(credential.api_key.take())?;
     }
+    settings.mcp.auth_token = decrypt_secret(settings.mcp.auth_token.take())?;
     Ok(settings)
 }
 
@@ -622,6 +662,7 @@ pub fn encrypt_ai_settings(mut settings: AiSettings) -> AppResult<AiSettings> {
     for credential in &mut settings.provider_credentials {
         credential.api_key = encrypt_secret(credential.api_key.take())?;
     }
+    settings.mcp.auth_token = encrypt_secret(settings.mcp.auth_token.take())?;
     Ok(settings)
 }
 
@@ -632,6 +673,7 @@ pub fn mask_ai_settings(mut settings: AiSettings) -> AiSettings {
     for credential in &mut settings.provider_credentials {
         credential.api_key = mask_secret(credential.api_key.take());
     }
+    settings.mcp.auth_token = mask_secret(settings.mcp.auth_token.take());
     settings
 }
 
@@ -652,6 +694,10 @@ pub fn merge_masked_ai_settings(current: &AiSettings, mut next: AiSettings) -> A
             .and_then(|item| item.api_key.as_ref());
         credential.api_key = merge_secret(current_secret, credential.api_key.as_ref());
     }
+    next.mcp.auth_token = merge_secret(
+        current.mcp.auth_token.as_ref(),
+        next.mcp.auth_token.as_ref(),
+    );
     normalize_ai_settings(&mut next);
     next
 }
@@ -662,6 +708,9 @@ pub fn normalize_ai_settings(settings: &mut AiSettings) -> bool {
     settings.schema_version = 5;
     if settings.request_user_agent.trim().is_empty() {
         settings.request_user_agent = default_request_user_agent();
+    }
+    if settings.mcp.bind_address.trim().is_empty() {
+        settings.mcp.bind_address = default_mcp_bind_address();
     }
 
     if settings.provider_credentials.is_empty() {

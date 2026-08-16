@@ -872,7 +872,7 @@ fn is_dangerous_dd_command(command: &str) -> bool {
     command.starts_with("dd ") && command.contains("of=/dev/")
 }
 
-fn assess_local_command_risk(command: &str) -> (RiskLevel, String) {
+pub(crate) fn assess_local_command_risk(command: &str) -> (RiskLevel, String) {
     let normalized = normalize_command(command);
     let compact = normalized.split_whitespace().collect::<Vec<_>>().join(" ");
 

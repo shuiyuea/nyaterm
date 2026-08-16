@@ -30,7 +30,7 @@ import { RiGeminiLine } from "react-icons/ri";
 import { TbCubeSpark } from "react-icons/tb";
 import { toast } from "sonner";
 import ChildWindowHeader from "@/components/layout/ChildWindowHeader";
-import { AiAgentsTab, AiGeneralTab, AiModelsTab, AiRulesTab } from "@/components/settings/AiTab";
+import { AiAgentsTab, AiGeneralTab, AiMcpTab, AiModelsTab, AiRulesTab } from "@/components/settings/AiTab";
 import { AppearanceTab } from "@/components/settings/AppearanceTab";
 import { GeneralTab } from "@/components/settings/GeneralTab";
 import { InteractionTab } from "@/components/settings/InteractionTab";
@@ -167,7 +167,7 @@ export default function SettingsPage() {
         id: "ai_group",
         label: t("ai.title"),
         icon: "ai",
-        items: ["ai-general", "ai-models", "ai-agents", "ai-rules"],
+        items: ["ai-general", "ai-models", "ai-agents", "ai-rules", "ai-mcp"],
       },
       {
         id: "transfer_group",
@@ -280,6 +280,12 @@ export default function SettingsPage() {
       label: t("ai.rules"),
       icon: "rules",
       Component: AiRulesTab,
+    },
+    {
+      id: "ai-mcp",
+      label: t("ai.mcp"),
+      icon: "dns",
+      Component: AiMcpTab,
     },
   ];
 

@@ -41,6 +41,8 @@ import type {
   AISettings,
   ClaudeCodeIntegrationSettings,
   CodexIntegrationSettings,
+  McpServerStatus,
+  McpSettings,
 } from "@/types/global";
 import {
   SettingFieldGrid,
@@ -1309,4 +1311,135 @@ export function AiRulesTab() {
 
 export function AiTab() {
   return <AiGeneralTab />;
+}
+
+export function AiMcpTab() {
+  const { t } = useTranslation();
+  const { appSettings, updateAppSettings } = useApp();
+  const mcp = appSettings.ai.mcp;
+  const [status, setStatus] = useState<McpServerStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const updateMcp = useCallback(
+    (patch: Partial<McpSettings>) =>
+      updateAppSettings({ ai: { ...appSettings.ai, mcp: { ...mcp, ...patch } } }),
+    [appSettings.ai, mcp, updateAppSettings],
+  );
+
+  const refreshStatus = useCallback(async () => {
+    try {
+      setStatus(await invoke<McpServerStatus>("get_mcp_server_status"));
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshStatus();
+  }, [refreshStatus]);
+
+  const start = useCallback(async () => {
+    setBusy(true);
+    try {
+      setStatus(await invoke<McpServerStatus>("start_mcp_server"));
+      toast.success(t("ai.mcpStarted"));
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }, [t]);
+
+  const stop = useCallback(async () => {
+    setBusy(true);
+    try {
+      setStatus(await invoke<McpServerStatus>("stop_mcp_server"));
+      toast.success(t("ai.mcpStopped"));
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }, [t]);
+
+  return (
+    <div className="space-y-5">
+      <SettingSection title={t("ai.mcpSettings")}>
+        <SettingRow label={t("ai.mcpEnabled")}>
+          <SettingSwitch checked={mcp.enabled} onChange={(enabled) => updateMcp({ enabled })} />
+        </SettingRow>
+        <SettingFieldGrid>
+          <SettingInput
+            label={t("ai.mcpBindAddress")}
+            desc={t("ai.mcpBindAddressDesc")}
+            value={mcp.bind_address}
+            onChange={(event) => updateMcp({ bind_address: event.target.value })}
+            fieldClassName="lg:col-span-2"
+          />
+          <SettingInput
+            label={t("ai.mcpAuthToken")}
+            desc={t("ai.mcpAuthTokenDesc")}
+            value={mcp.auth_token ?? ""}
+            onChange={(event) => updateMcp({ auth_token: event.target.value || null })}
+          />
+          <SettingSelect
+            label={t("ai.mcpPermissionMode")}
+            value={mcp.permission_mode}
+            onValueChange={(permission_mode) =>
+              updateMcp({ permission_mode: permission_mode as AIPermissionMode })
+            }
+          >
+            <SelectItem value="observer">{t("ai.mcpModeObserver")}</SelectItem>
+            <SelectItem value="confirm">{t("ai.mcpModeConfirm")}</SelectItem>
+            <SelectItem value="auto">{t("ai.mcpModeAuto")}</SelectItem>
+          </SettingSelect>
+          <SettingInput
+            label={t("ai.mcpAllowedSessions")}
+            desc={t("ai.mcpAllowedSessionsDesc")}
+            value={mcp.allowed_sessions.join(", ")}
+            onChange={(event) =>
+              updateMcp({
+                allowed_sessions: event.target.value
+                  .split(",")
+                  .map((value) => value.trim())
+                  .filter(Boolean),
+              })
+            }
+            fieldClassName="lg:col-span-2"
+          />
+        </SettingFieldGrid>
+      </SettingSection>
+
+      <SettingSection title={t("ai.mcpRuntime")}>
+        <div className="flex flex-wrap items-center gap-3">
+          <span
+            className={`text-sm font-medium ${
+              status?.running ? "text-green-600 dark:text-green-400" : "text-muted-foreground"
+            }`}
+          >
+            {status?.running ? t("ai.mcpRunning") : t("ai.mcpNotRunning")}
+          </span>
+          {status?.bindAddress ? (
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{status.bindAddress}</code>
+          ) : null}
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => void refreshStatus()} disabled={busy}>
+              <MdRefresh className="mr-1 h-4 w-4" />
+              {t("ai.mcpRefresh")}
+            </Button>
+            {status?.running ? (
+              <Button variant="outline" size="sm" onClick={() => void stop()} disabled={busy}>
+                {t("ai.mcpStop")}
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => void start()} disabled={busy}>
+                {t("ai.mcpStart")}
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground">{t("ai.mcpEndpointDesc")}</div>
+      </SettingSection>
+    </div>
+  );
 }

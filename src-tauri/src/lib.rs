@@ -22,6 +22,7 @@ use std::sync::Arc;
 use crate::cmd::app::AppLockState;
 use crate::cmd::docker::DockerSudoManager;
 use crate::core::ai::AgentApprovalManager;
+use crate::core::mcp::McpServerManager;
 use crate::core::monitoring::stats::RemoteStatsSampler;
 use crate::core::sftp::TransferDuplicateManager;
 use crate::core::ssh::{
@@ -51,6 +52,7 @@ pub fn run() {
     let quick_commands_store = Arc::new(QuickCommandsStore::new());
     let cloud_sync_manager = Arc::new(CloudSyncManager::new());
     let agent_approval_manager = Arc::new(AgentApprovalManager::new());
+    let mcp_server_manager = Arc::new(McpServerManager::new());
     let codex_app_server_manager = Arc::new(core::ai::CodexAppServerManager::new());
     let claude_code_runtime = Arc::new(core::ai::ClaudeCodeRuntime::new());
     let transfer_duplicate_manager = Arc::new(TransferDuplicateManager::new());
@@ -101,6 +103,7 @@ pub fn run() {
         .manage(quick_commands_store.clone())
         .manage(cloud_sync_manager.clone())
         .manage(agent_approval_manager.clone())
+        .manage(mcp_server_manager.clone())
         .manage(codex_app_server_manager.clone())
         .manage(claude_code_runtime.clone())
         .manage(transfer_duplicate_manager.clone())
@@ -158,6 +161,10 @@ pub fn run() {
             cmd::ai::rebind_ai_session,
             cmd::ai::append_ai_audit,
             cmd::ai::get_ai_audit_logs,
+            cmd::mcp::start_mcp_server,
+            cmd::mcp::stop_mcp_server,
+            cmd::mcp::get_mcp_server_status,
+            cmd::mcp::respond_mcp_approval,
             cmd::clipboard::read_clipboard_text,
             cmd::clipboard::write_clipboard_text,
             cmd::clipboard::read_clipboard_path_payload,
