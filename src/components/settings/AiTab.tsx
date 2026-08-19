@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   MdAdd,
+  MdCheck,
+  MdContentCopy,
   MdDelete,
   MdExpandLess,
   MdExpandMore,
@@ -19,6 +21,7 @@ import { SelectItem } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useApp } from "@/context/AppContext";
 import { useSettingsDraft } from "@/context/SettingsDraftContext";
+import { writeClipboardText } from "@/lib/clipboard";
 import {
   aiModelIdForCredential,
   aiModelIdForProvider,
@@ -1313,12 +1316,30 @@ export function AiTab() {
   return <AiGeneralTab />;
 }
 
+function buildMcpClientConfig(mcp: McpSettings): string {
+  const url = `http://${mcp.bind_address.trim() || "127.0.0.1:26201"}/mcp`;
+  const config: Record<string, unknown> = {
+    type: "streamable_http",
+    url,
+    disabled: !mcp.enabled,
+  };
+  const token = mcp.auth_token?.trim();
+  if (token) {
+    config.headers = { Authorization: `Bearer ${token}` };
+  }
+  return `"nyaterm": ${JSON.stringify(config, null, 2)}`;
+}
+
 export function AiMcpTab() {
   const { t } = useTranslation();
   const { appSettings, updateAppSettings } = useApp();
   const mcp = appSettings.ai.mcp;
   const [status, setStatus] = useState<McpServerStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const clientConfigText = useMemo(() => buildMcpClientConfig(mcp), [mcp]);
 
   const updateMcp = useCallback(
     (patch: Partial<McpSettings>) =>
@@ -1361,6 +1382,18 @@ export function AiMcpTab() {
       setBusy(false);
     }
   }, [t]);
+
+  const copyConfig = useCallback(async () => {
+    try {
+      await writeClipboardText(clientConfigText);
+      setCopied(true);
+      clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 1500);
+      toast.success(t("ai.mcpConfigCopied"));
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  }, [clientConfigText, t]);
 
   return (
     <div className="space-y-5">
@@ -1439,6 +1472,21 @@ export function AiMcpTab() {
           </div>
         </div>
         <div className="text-xs text-muted-foreground">{t("ai.mcpEndpointDesc")}</div>
+      </SettingSection>
+
+      <SettingSection
+        title={t("ai.mcpClientConfig")}
+        action={
+          <Button size="sm" variant="outline" onClick={() => void copyConfig()}>
+            {copied ? <MdCheck /> : <MdContentCopy />}
+            {copied ? t("common.copied") : t("ai.mcpCopyConfig")}
+          </Button>
+        }
+      >
+        <pre className="overflow-auto rounded-md border border-border/70 bg-muted/40 p-3 text-xs leading-5 terminal-scroll">
+          {clientConfigText}
+        </pre>
+        <div className="text-xs text-muted-foreground">{t("ai.mcpClientConfigDesc")}</div>
       </SettingSection>
     </div>
   );

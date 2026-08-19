@@ -1,7 +1,8 @@
 # NyaTerm 编译流程
 
-> 从源码到安装包的完整构建链路，基于本项目实际构建过程整理。
+> 从源码到主程序的构建链路，基于本项目实际构建过程整理。
 > 适用环境：**Windows 11（x64）+ MSVC 工具链**。
+> 默认模式：**仅编译，不生成 MSI/NSIS 安装包**（`--no-bundle`）。
 
 ## 一、编译流程图
 
@@ -14,16 +15,13 @@ flowchart TB
     E["后端编译<br/>cargo build --release<br/>(需 vcvars64.bat 激活 MSVC)"] --> F
     F["生成主程序<br/>target/release/nyaterm.exe"] --> G
 
-    G --> G1{"打包安装包<br/>bundle.targets = all"}
-    G1 --> H["MSI 打包<br/>需 WiX 工具 (wix314)"]
-    G1 --> I["NSIS 打包<br/>需 NSIS 工具 (nsis-3.11)"]
-    H --> J["NyaTerm_x64_en-US.msi"]
-    I --> K["NyaTerm_x64-setup.exe"]
-
-    J --> L{"updater 签名<br/>createUpdaterArtifacts"}
-    K --> L
-    L -->|"有私钥 TAURI_SIGNING_PRIVATE_KEY"| M["生成 .sig 签名产物<br/>(用于自动更新)"]
-    L -->|"无私钥"| N["⚠ 报错但忽略<br/>安装包已完整生成"]
+    G --> G1{"是否打包安装包？"}
+    G1 -->|"默认：否（--no-bundle）"| FIN["✅ 仅得到 nyaterm.exe<br/>跳过 MSI/NSIS"]
+    G1 -->|"可选：是（去掉 --no-bundle）"| H
+    H --> H1["MSI 打包<br/>需 WiX 工具 (wix314)"]
+    H --> H2["NSIS 打包<br/>需 NSIS 工具 (nsis-3.11)"]
+    H1 --> J["NyaTerm_x64_en-US.msi"]
+    H2 --> K["NyaTerm_x64-setup.exe"]
 ```
 
 ## 二、详细步骤（Windows 11）
@@ -46,52 +44,76 @@ cd nyaterm
 pnpm install
 ```
 
-### 第 3 步：编译
+### 第 3 步：编译（默认免打包）
 
 **必须**在 MSVC 环境下执行（否则链接失败）：
 
-```powershell
+```cmd
 # 方式一：直接打开「x64 Native Tools Command Prompt for VS 2019」
+set NODE_OPTIONS=
 cd /d D:\mycode\mycode2026\others\nyaterm
-pnpm tauri build
+pnpm tauri build --no-bundle
 
-# 方式二：普通 CMD 先激活环境
+# 方式二：普通 CMD 先激活 MSVC 环境
+set NODE_OPTIONS=
 call "D:\codetools\VisualStudio\2019\VC\Auxiliary\Build\vcvars64.bat"
 cd /d D:\mycode\mycode2026\others\nyaterm
-pnpm tauri build
+pnpm tauri build --no-bundle
+
+# 方式三：直接跑封装好的 build.cmd（已内置 vcvars64 + 免打包）
+cd /d D:\mycode\mycode2026\others\nyaterm
+build.cmd
 ```
 
-`pnpm tauri build` 内部依次执行：
+`pnpm tauri build --no-bundle` 内部依次执行：
 1. `beforeBuildCommand`（`pnpm build`）→ 前端 `tsc` + Vite 打包
 2. `cargo build --release` → 编译 Rust 后端
-3. `bundle` → 打包 MSI + NSIS 安装包
+3. **跳过** `bundle` → 不生成 MSI/NSIS 安装包
 
 ### 第 4 步：获取产物
 
 ```
-src-tauri/target/release/nyaterm.exe         # 主程序
+src-tauri/target/release/nyaterm.exe    # 主程序（免打包模式唯一产物）
+```
+
+## 三、如何改为打包安装包（可选）
+
+如果后续需要 MSI/NSIS 安装包，去掉 `--no-bundle` 即可：
+
+```cmd
+pnpm tauri build
+```
+
+产物：
+```
 src-tauri/target/release/bundle/msi/*.msi    # MSI 安装包
 src-tauri/target/release/bundle/nsis/*.exe   # NSIS 安装包（推荐）
 ```
 
-## 三、常见坑与解决
+## 四、常见坑与解决
 
 | 问题 | 原因 | 解决 |
 |---|---|---|
 | `linker 'link.exe' not found` | 未用 MSVC 环境 | 用 `vcvars64.bat` 激活，或用 x64 Native Tools 命令行 |
+| pnpm/vite 构建被破坏或报错 | WorkBuddy `NODE_OPTIONS` 拦截器污染 pnpm | 每次会话先 `set NODE_OPTIONS=` 清空 |
+| `'pnpm' 不是内部或外部命令` | 未装 pnpm | `npm install -g pnpm@9`，重开终端 |
+
+> 以下**仅在打包安装包时才会遇到**（免打包模式不会触发）：
+
+| 问题 | 原因 | 解决 |
+|---|---|---|
 | 卡在 `Downloading wix314-binaries.zip` | 从 GitHub 下载 WiX，国内网络慢 | 手动下载解压到 `%LOCALAPPDATA%\tauri\WixTools314\` |
 | 卡在 `Downloading nsis-3.11.zip` | 同样，NSIS 工具下载慢 | 手动放到 `%LOCALAPPDATA%\tauri\NSIS\`（含 `Plugins\x86-unicode\additional\nsis_tauri_utils.dll`） |
 | 尾部报 `TAURI_SIGNING_PRIVATE_KEY` | 配了 updater 公钥但无私钥 | 本地自用可忽略；或把 `createUpdaterArtifacts` 改为 `false` |
-| `'pnpm' 不是内部或外部命令` | 未装 pnpm | `npm install -g pnpm@9`，重开终端 |
 
-## 四、开发模式（可选）
+## 五、开发模式（可选）
 
 ```powershell
 pnpm tauri dev    # 完整桌面应用（Vite HMR + Rust 热重编译）
 pnpm dev          # 仅前端（Vite，端口 1420）
 ```
 
-## 五、关键打包缓存路径
+## 六、关键打包缓存路径（仅打包时用）
 
 ```
 C:\Users\<你>\AppData\Local\tauri\
@@ -99,4 +121,4 @@ C:\Users\<你>\AppData\Local\tauri\
 └── NSIS\           # NSIS 工具（EXE 打包）
 ```
 
-> 首次构建会自动下载这两个工具到上述路径；提前手动放好可避免国内网络卡顿。
+> 首次打包会自动下载这两个工具到上述路径；提前手动放好可避免国内网络卡顿。
